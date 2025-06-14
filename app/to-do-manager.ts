@@ -3,6 +3,7 @@ interface Todo {
   text: string;
   completed: boolean;
   createdAt: number;
+  priority: 'high' | 'medium' | 'low';
 }
 
 /**
@@ -31,7 +32,13 @@ export class TodoManager {
   async list(): Promise<Todo[]> {
     const todos = await this.kv.get(this.todosKey, "json");
     if (Array.isArray(todos)) {
-      todos.sort((a: Todo, b: Todo) => b.createdAt - a.createdAt);
+      // 優先度と作成日時でソート
+      todos.sort((a: Todo, b: Todo) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        return b.createdAt - a.createdAt;
+      });
     }
     return (todos || []) as Todo[];
   }
@@ -39,14 +46,16 @@ export class TodoManager {
   /**
    * Creates a new todo item
    * @param text - The text content of the todo item
+   * @param priority - The priority of the todo item
    * @returns Promise containing the newly created Todo item
    */
-  async create(text: string): Promise<Todo> {
+  async create(text: string, priority: 'high' | 'medium' | 'low' = 'medium'): Promise<Todo> {
     const newTodo: Todo = {
       id: crypto.randomUUID(),
       text,
       completed: false,
       createdAt: Date.now(),
+      priority,
     };
     const todos = await this.list();
     todos.push(newTodo);
